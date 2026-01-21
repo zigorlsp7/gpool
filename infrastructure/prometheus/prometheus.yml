@@ -1,0 +1,73 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # NestJS Services - Metrics endpoints
+  - job_name: 'auth-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['auth-service:3001']
+        labels:
+          service: 'auth-service'
+
+  - job_name: 'user-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['user-service:3002']
+        labels:
+          service: 'user-service'
+
+  - job_name: 'pool-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['pool-service:3003']
+        labels:
+          service: 'pool-service'
+
+  - job_name: 'match-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['match-service:3004']
+        labels:
+          service: 'match-service'
+
+  - job_name: 'prediction-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['prediction-service:3005']
+        labels:
+          service: 'prediction-service'
+
+  - job_name: 'scoring-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['scoring-service:3006']
+        labels:
+          service: 'scoring-service'
+
+  - job_name: 'leaderboard-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['leaderboard-service:3007']
+        labels:
+          service: 'leaderboard-service'
+
+  - job_name: 'notification-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['notification-service:3008']
+        labels:
+          service: 'notification-service'
+
+  - job_name: 'websocket-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['websocket-service:3009']
+        labels:
+          service: 'websocket-service'

@@ -1,0 +1,24 @@
+{
+  "name": "gpool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time football pool management platform",
+  "scripts": {
+    "dev": "pnpm --filter './apps/*' --filter './services/*' dev",
+    "build": "pnpm --filter './apps/*' --filter './services/*' build",
+    "test": "pnpm --filter './apps/*' --filter './services/*' test",
+    "lint": "pnpm --filter './apps/*' --filter './services/*' lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "clean": "pnpm --filter './apps/*' --filter './services/*' clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
