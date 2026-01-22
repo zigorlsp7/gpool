@@ -11,10 +11,29 @@ COPY apps/web ./apps/web
 RUN pnpm install --frozen-lockfile
 
 FROM base AS development
-WORKDIR /app/apps/web
+
+# Create entrypoint script to ensure dependencies are installed
+RUN cat > /entrypoint.sh << 'EOF'
+#!/bin/sh
+set -e
+echo "Installing dependencies..."
+cd /app
+pnpm install --frozen-lockfile || pnpm install
+echo "Dependencies installed. Starting Next.js..."
+cd /app/apps/web
+exec "$@"
+EOF
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /app
+
 EXPOSE 3000
+
+ENTRYPOINT ["/entrypoint.sh"]
+
 # Next.js will bind to 0.0.0.0 by default in Docker
 # Run pnpm dev from the web app directory
+WORKDIR /app/apps/web
 CMD ["pnpm", "run", "dev"]
 
 FROM base AS build

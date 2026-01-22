@@ -2,7 +2,7 @@ services:
   # ============================================
   # Infrastructure Services
   # ============================================
-  
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: gpool-zookeeper
@@ -39,7 +39,13 @@ services:
     networks:
       - gpool-network
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-broker-api-versions",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -77,7 +83,7 @@ services:
   # ============================================
   # Observability Stack (Local Development)
   # ============================================
-  
+
   prometheus:
     image: prom/prometheus:latest
     container_name: gpool-prometheus
@@ -87,8 +93,8 @@ services:
       - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     networks:
       - gpool-network
     restart: unless-stopped
@@ -138,10 +144,82 @@ services:
       - loki
     restart: unless-stopped
 
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: gpool-kafka-ui
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - gpool-network
+    depends_on:
+      - kafka
+      - zookeeper
+    restart: unless-stopped
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin:latest
+    container_name: gpool-dynamodb-admin
+    ports:
+      - "8082:8001"
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+    networks:
+      - gpool-network
+    depends_on:
+      - dynamodb-local
+    restart: unless-stopped
+
+  # ============================================
+  # Backend Services
+  # ============================================
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+      target: development
+    container_name: gpool-auth-service
+    ports:
+      - "3010:3001"
+    volumes:
+      - ./services/auth-service:/app/services/auth-service
+      - ./packages:/app/packages
+      - root-node-modules:/app/node_modules
+      - shared-node-modules:/app/packages/shared/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-604800}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - DYNAMODB_ENDPOINT=${DYNAMODB_ENDPOINT:-http://dynamodb-local:8000}
+      - DYNAMODB_TABLE_USERS=${DYNAMODB_TABLE_USERS:-Users}
+      - DYNAMODB_TABLE_REFRESH_TOKENS=${DYNAMODB_TABLE_REFRESH_TOKENS:-RefreshTokens}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - KAFKA_BROKERS=${KAFKA_BROKERS:-kafka:29092}
+    networks:
+      - gpool-network
+    depends_on:
+      - dynamodb-local
+      - kafka
+    restart: unless-stopped
+
   # ============================================
   # Frontend Application
   # ============================================
-  
+
   web:
     build:
       context: .
@@ -153,7 +231,6 @@ services:
     volumes:
       - ./apps/web:/app/apps/web
       - ./packages:/app/packages
-      - web-node-modules:/app/apps/web/node_modules
       - root-node-modules:/app/node_modules
       - shared-node-modules:/app/packages/shared/node_modules
     environment:
@@ -168,7 +245,7 @@ services:
   # ============================================
   # Note: Services will be added to docker-compose when ready
   # For now, Nginx can run and will route to services when they start
-  
+
   nginx:
     image: nginx:alpine
     container_name: gpool-nginx
@@ -178,6 +255,9 @@ services:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - gpool-network
+    depends_on:
+      - auth-service
+      - web
     restart: unless-stopped
 
 volumes:
@@ -186,7 +266,6 @@ volumes:
   prometheus-data:
   grafana-data:
   loki-data:
-  web-node-modules:
   root-node-modules:
   shared-node-modules:
 
