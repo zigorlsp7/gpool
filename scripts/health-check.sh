@@ -28,7 +28,7 @@ check_service "DynamoDB Local" "http://localhost:8000"
 echo ""
 
 # Check services
-check_service "Auth Service" "http://localhost:3001/health" || true
+check_service "Auth Service" "http://localhost:3010/api/health" || true
 check_service "User Service" "http://localhost:3002/health" || true
 check_service "Pool Service" "http://localhost:3003/health" || true
 check_service "Match Service" "http://localhost:3004/health" || true

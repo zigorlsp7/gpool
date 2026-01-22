@@ -29,16 +29,32 @@ FROM base AS development
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/packages ./packages
 
-# Copy service-specific files
+# Copy service-specific files (will be overridden by volume mount in docker-compose)
 COPY services/auth-service ./services/auth-service
 
-WORKDIR /app/services/auth-service
+# Create entrypoint script to ensure dependencies are installed
+RUN cat > /entrypoint.sh << 'EOF'
+#!/bin/sh
+set -e
+echo "Installing dependencies..."
+cd /app
+pnpm install --frozen-lockfile || pnpm install
+echo "Dependencies installed. Starting NestJS..."
+cd /app/services/auth-service
+exec "$@"
+EOF
+RUN chmod +x /entrypoint.sh
+
+WORKDIR /app
 
 # Expose port
 EXPOSE 3001
 
+ENTRYPOINT ["/entrypoint.sh"]
+
 # Start development server with hot reload
-CMD ["pnpm", "run", "start:dev"]
+# Use pnpm exec to find nest CLI in workspace
+CMD ["pnpm", "exec", "nest", "start", "--watch"]
 
 # ============================================
 # Build Stage

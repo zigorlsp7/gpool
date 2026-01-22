@@ -42,22 +42,51 @@ create_table_if_not_exists() {
   fi
 }
 
-# Users table - using direct command due to complex GlobalSecondaryIndexes syntax
+# Users table - using JSON file for reliable GlobalSecondaryIndexes syntax
 if ! aws dynamodb describe-table --table-name Users --endpoint-url "$DYNAMODB_ENDPOINT" --region "$REGION" --no-cli-pager >/dev/null 2>&1; then
   echo -e "${YELLOW}Creating Users table...${NC}"
-  aws dynamodb create-table \
+  
+  # Create temporary JSON file for table definition
+  TMP_JSON=$(mktemp)
+  cat > "$TMP_JSON" << 'USERS_TABLE_JSON'
+{
+  "TableName": "Users",
+  "AttributeDefinitions": [
+    {"AttributeName": "userId", "AttributeType": "S"},
+    {"AttributeName": "email", "AttributeType": "S"}
+  ],
+  "KeySchema": [
+    {"AttributeName": "userId", "KeyType": "HASH"}
+  ],
+  "GlobalSecondaryIndexes": [
+    {
+      "IndexName": "email-index",
+      "KeySchema": [
+        {"AttributeName": "email", "KeyType": "HASH"}
+      ],
+      "Projection": {"ProjectionType": "ALL"},
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
+    }
+  ],
+  "BillingMode": "PAY_PER_REQUEST"
+}
+USERS_TABLE_JSON
+  
+  if aws dynamodb create-table \
+    --cli-input-json "file://$TMP_JSON" \
     --endpoint-url "$DYNAMODB_ENDPOINT" \
     --region "$REGION" \
-    --table-name Users \
-    --attribute-definitions \
-      AttributeName=userId,AttributeType=S \
-      AttributeName=email,AttributeType=S \
-    --key-schema \
-      AttributeName=userId,KeyType=HASH \
-    --global-secondary-indexes \
-      IndexName=email-index,KeySchema=[{AttributeName=email,KeyType=HASH}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5} \
-    --billing-mode PAY_PER_REQUEST \
-    --no-cli-pager >/dev/null 2>&1 && echo -e "${GREEN}✓ Users table created${NC}" || echo -e "${GREEN}✓ Users table ready${NC}"
+    --no-cli-pager >/dev/null 2>&1; then
+    echo -e "${GREEN}✓ Users table created${NC}"
+    rm -f "$TMP_JSON"
+  else
+    echo -e "${RED}✗ Failed to create Users table${NC}"
+    rm -f "$TMP_JSON"
+    exit 1
+  fi
 else
   echo -e "${GREEN}✓ Users table already exists${NC}"
 fi

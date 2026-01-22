@@ -10,9 +10,9 @@ scrape_configs:
 
   # NestJS Services - Metrics endpoints
   - job_name: 'auth-service'
-    metrics_path: '/metrics'
+    metrics_path: '/api/metrics'  # Auth service uses /api prefix
     static_configs:
-      - targets: ['auth-service:3001']
+      - targets: ['auth-service:3001']  # Internal port is still 3001, external is 3010
         labels:
           service: 'auth-service'
 
