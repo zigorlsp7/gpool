@@ -58,6 +58,14 @@ jobs:
           SWAGGER_ENABLED: "false"
           OTEL_SERVICE_NAME: gpool-api
           OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+          OPENBAO_ADDR: http://openbao:8200
+          OPENBAO_TOKEN: ci-openbao-token
+          OPENBAO_KV_MOUNT: kv
+          OPENBAO_SECRET_PATH: gpool
+          OPENBAO_REQUIRED_KEYS_API: AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET,SMTP_PASS
+          OPENBAO_REQUIRED_KEYS_WEB: AUTH_SESSION_SECRET,TOLGEE_API_KEY
+          TOLGEE_API_URL: http://tolgee:8080
+          TOLGEE_PROJECT_ID: "1"
           JWT_SECRET: ci-jwt-secret
           JWT_REFRESH_SECRET: ci-jwt-refresh-secret
           JWT_EXPIRES_IN: 15m
