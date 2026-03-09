@@ -31,6 +31,12 @@
     "audit:prod:gate": "node ./scripts/audit-prod-gate.mjs",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules"
   },
+  "overrides": {
+    "multer": "2.1.1",
+    "@nestjs/platform-express": {
+      "multer": "2.1.1"
+    }
+  },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",

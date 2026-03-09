@@ -24,6 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
+RUN apk upgrade --no-cache zlib
 COPY --from=deps /workspace/node_modules /app/node_modules
 COPY --from=build /workspace/apps/ui/.next/standalone ./
 COPY --from=build /workspace/apps/ui/.next/static ./apps/ui/.next/static

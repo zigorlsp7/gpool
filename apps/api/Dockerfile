@@ -18,6 +18,7 @@ RUN npm run build
 FROM node:20-alpine AS prod
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
+RUN apk upgrade --no-cache zlib
 COPY --from=deps /app/node_modules /app/node_modules
 COPY --from=build /app/apps/api/dist /app/apps/api/dist
 COPY scripts/openbao-run.mjs /app/scripts/openbao-run.mjs

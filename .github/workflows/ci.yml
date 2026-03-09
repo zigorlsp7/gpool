@@ -198,6 +198,53 @@ jobs:
         if: always()
         run: docker compose -f docker/compose.ci.yml down -v
 
+  web-smoke:
+    name: Web Smoke (HTTP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Compose up (postgres + api + web)
+        run: docker compose -f docker/compose.ci.yml up -d --build postgres api web
+
+      - name: Wait for web
+        run: |
+          i=1
+          while [ $i -le 60 ]; do
+            if curl -fsS http://localhost:3101/login > /dev/null; then
+              echo "Web login route is reachable"
+              exit 0
+            fi
+            sleep 2
+            i=$((i+1))
+          done
+          docker compose -f docker/compose.ci.yml logs --no-color web api
+          exit 1
+
+      - name: Web and API smoke probes
+        run: |
+          curl -fsS http://localhost:3101/login > /dev/null
+          curl -fsS http://localhost:3010/api/health > /dev/null
+
+      - name: Compose logs (on failure)
+        if: failure()
+        run: docker compose -f docker/compose.ci.yml logs --no-color web api
+
+      - name: Compose down
+        if: always()
+        run: docker compose -f docker/compose.ci.yml down -v
+
   security-supply-chain:
     name: Security + Supply Chain
     runs-on: ubuntu-latest
@@ -244,3 +291,30 @@ jobs:
           trivyignores: .trivyignore
           vuln-type: os,library
           severity: HIGH,CRITICAL
+
+      - name: Prepare artifacts dir
+        run: mkdir -p artifacts
+
+      - name: Generate SBOM (api image)
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0
+        with:
+          image: gpool-api:ci
+          format: spdx-json
+          output-file: artifacts/sbom-api.spdx.json
+
+      - name: Generate SBOM (web image)
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0
+        with:
+          image: gpool-web:ci
+          format: spdx-json
+          output-file: artifacts/sbom-web.spdx.json
+
+      - name: Upload SBOM artifacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: sbom
+          path: |
+            artifacts/sbom-api.spdx.json
+            artifacts/sbom-web.spdx.json
+          if-no-files-found: error
