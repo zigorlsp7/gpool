@@ -40,7 +40,9 @@ class RUMService {
   }
 
   private generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const randomBytes = new Uint32Array(1);
+    window.crypto.getRandomValues(randomBytes);
+    return `${Date.now()}-${randomBytes[0].toString(36)}`;
   }
 
   private init() {
