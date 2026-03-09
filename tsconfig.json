@@ -8,10 +8,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
-    "paths": {
-      "@gpool/shared": ["packages/shared/src"]
-    }
+    "baseUrl": "."
   },
   "exclude": ["node_modules", "dist", "build", ".next"]
 }

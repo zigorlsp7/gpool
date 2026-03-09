@@ -1,0 +1,3 @@
+locals {
+  module = "aws-compose"
+}

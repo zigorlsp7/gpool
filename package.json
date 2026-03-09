@@ -3,22 +3,40 @@
   "version": "0.1.0",
   "private": true,
   "description": "Real-time football pool management platform",
+  "engines": {
+    "node": ">=20.19.0 <21",
+    "npm": ">=10"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "pnpm --filter './apps/*' --filter './services/*' dev",
-    "build": "pnpm --filter './apps/*' --filter './services/*' build",
-    "test": "pnpm --filter './apps/*' --filter './services/*' test",
-    "lint": "pnpm --filter './apps/*' --filter './services/*' lint",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "clean": "pnpm --filter './apps/*' --filter './services/*' clean && rm -rf node_modules"
+    "prepare": "node ./scripts/prepare-husky.mjs",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write \".github/**/*.{yml,yaml}\" \"docker/**/*.{yml,yaml}\" \"scripts/**/*.mjs\" \"docs/deployment.md\" \"docs/observability.md\" \"docs/deploy-aws-terraform.md\" \"docs/env-management.md\" \"docs/github-governance.md\" \"infra/**/*.md\" \"README.md\" \"CHANGELOG.md\" \"package.json\" \".release-please-config.json\" \".release-please-manifest.json\"",
+    "format:check": "prettier --check \".github/**/*.{yml,yaml}\" \"docker/**/*.{yml,yaml}\" \"scripts/**/*.mjs\" \"docs/deployment.md\" \"docs/observability.md\" \"docs/deploy-aws-terraform.md\" \"docs/env-management.md\" \"docs/github-governance.md\" \"infra/**/*.md\" \"README.md\" \"CHANGELOG.md\" \"package.json\" \".release-please-config.json\" \".release-please-manifest.json\"",
+    "typecheck": "npm run typecheck -w @gpool/api",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:cov:api": "npm run test:cov -w @gpool/api -- --passWithNoTests --watchman=false --ci",
+    "test:secrets:gitleaks": "./scripts/precommit-gitleaks.sh",
+    "ci:integration:local": "./scripts/precommit-integration-e2e.sh",
+    "ci:quality:local": "npm run lint && npm run typecheck && npm run build && npm run test:cov:api",
+    "precommit:checks": "npm run test:secrets:gitleaks && npm run ci:quality:local && npm run ci:integration:local",
+    "local:up": "bash ./scripts/local-stack-up.sh",
+    "local:down": "bash ./scripts/local-stack-down.sh",
+    "local:reset": "bash ./scripts/local-stack-reset.sh",
+    "env:doctor": "bash ./scripts/env-doctor.sh",
+    "audit": "npm audit --audit-level=high",
+    "audit:prod:gate": "node ./scripts/audit-prod-gate.mjs",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
     "@types/node": "^20.10.0",
+    "husky": "^9.1.7",
     "prettier": "^3.1.0",
     "typescript": "^5.3.0"
-  },
-  "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=8.0.0"
-  },
-  "packageManager": "pnpm@8.15.0"
+  }
 }

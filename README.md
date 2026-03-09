@@ -1,128 +1,64 @@
-# Football Pool Management System
+# gpool
 
-A real-time football pool management platform built with microservices architecture.
+Football pool platform monorepo.
 
-## 🏗️ Architecture
+## Repository shape (aligned with `cv`)
 
-- **Frontend**: Next.js (React, TypeScript)
-- **Backend**: NestJS microservices (TypeScript)
-- **Message Broker**: Apache Kafka (MSK)
-- **Database**: DynamoDB
-- **Cache**: Redis (ElastiCache)
-- **Infrastructure**: AWS (ECS Fargate, ALB, CloudFront)
+- `apps/ui`: Next.js web app
+- `apps/api`: NestJS monolithic backend (auth + pools + notifications + RUM)
+- `docker/`: app-local, app-prod, ci/precommit compose manifests + env templates
+- `infra/terraform/`: deploy-facing terraform layout
+- `.github/workflows/`: CI, deploy, release, governance workflows
 
-See [FINAL_ARCHITECTURE.md](./FINAL_ARCHITECTURE.md) for complete architecture details.
+## Quick start
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose
-- Node.js 20+
-- pnpm 8+
-
-### Setup
-
-1. **Clone and install dependencies**:
-   ```bash
-   pnpm install
-   ```
-
-2. **Copy environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your values
-   ```
-
-3. **Start infrastructure services**:
-   ```bash
-   docker-compose up -d zookeeper kafka redis dynamodb-local
-   ```
-
-4. **Setup Kafka topics**:
-   ```bash
-   make setup-kafka
-   # Or: ./scripts/setup-kafka-topics.sh
-   ```
-
-5. **Initialize DynamoDB tables**:
-   ```bash
-   make init-dynamodb
-   # Or: ./scripts/init-dynamodb-local.sh
-   ```
-
-6. **Start all services**:
-   ```bash
-   docker-compose up -d
-   # Or: make up
-   ```
-
-7. **Check health**:
-   ```bash
-   make health
-   # Or: ./scripts/health-check.sh
-   ```
-
-### Development
-
-- **View logs**: `make logs` or `docker-compose logs -f <service-name>`
-- **Rebuild service**: `make rebuild SERVICE=<service-name>`
-- **Run tests**: `pnpm test` (in service directory) or `make test`
-- **Stop services**: `make down` or `docker-compose down`
-
-## 📁 Project Structure
-
-```
-football-pool/
-├── apps/
-│   ├── web/          # Next.js web application
-│   └── mobile/       # React Native mobile app
-├── services/         # NestJS microservices
-│   ├── auth-service/
-│   ├── user-service/
-│   ├── pool-service/
-│   ├── match-service/
-│   ├── prediction-service/
-│   ├── scoring-service/
-│   ├── leaderboard-service/
-│   ├── notification-service/
-│   └── websocket-service/
-├── packages/         # Shared packages
-│   ├── shared/       # Shared types, utilities
-│   ├── ui/           # Shared UI components
-│   └── config/       # Shared configurations
-└── infrastructure/   # Infrastructure as code
-    ├── terraform/
-    └── nginx/
-```
-
-## 🔧 Available Commands
-
-- `make up` - Start all services
-- `make down` - Stop all services
-- `make logs` - View logs
-- `make build` - Build all services
-- `make setup-kafka` - Create Kafka topics
-- `make init-dynamodb` - Initialize DynamoDB tables
-- `make health` - Check service health
-- `make clean` - Clean containers and volumes
-
-## 📚 Documentation
-
-- [Architecture Plan](./FINAL_ARCHITECTURE.md) - Complete architecture documentation
-- [API Documentation](./docs/api.md) - API endpoints (to be created)
-- [Development Guide](./docs/development.md) - Development guidelines (to be created)
-
-## 🧪 Testing
+1. Install dependencies
 
 ```bash
-# Run all tests
-pnpm test
-
-# Run tests for specific service
-cd services/auth-service && pnpm test
+npm install
 ```
 
-## 📝 License
+2. Start local app stack
 
-Private - All rights reserved
+```bash
+npm run local:up
+```
+
+This app stack expects the shared Docker network from `platform-ops` (`platform_ops_shared` by default).
+
+3. Check stack
+
+```bash
+curl -fsS http://localhost:3010/api/health
+curl -fsS http://localhost:3011
+```
+
+4. Stop stack
+
+```bash
+npm run local:down
+```
+
+## Quality commands
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm run test
+npm run env:doctor
+```
+
+## Release + deploy model
+
+- `Release Please` manages versioning/changelog + release PR.
+- On release publish, `Deploy AWS App (EC2 Compose)` builds/pushes images and deploys remotely via AWS SSM.
+- Runtime env comes from SSM path (default `/gpool/prod/app`) rendered into `docker/.env.app.prod` on the host.
+- Platform infra/ops services are owned by `platform-ops`; this repo only ships app stack compose + app config under `docker/`.
+
+See:
+
+- `docs/deployment.md`
+- `docs/observability.md`
+- `docs/deploy-aws-terraform.md`
+- `docs/github-governance.md`

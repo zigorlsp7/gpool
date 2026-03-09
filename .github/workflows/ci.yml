@@ -1,56 +1,238 @@
 name: CI
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: "0"
 
 jobs:
-  lint-and-test:
+  quality:
+    name: Quality (Lint + Typecheck + Build + Unit Coverage)
     runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8.15.0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Lint
-        run: pnpm lint
-      
-      - name: Format check
-        run: pnpm format --check
-      
-      - name: Type check
-        run: pnpm --filter './services/*' --filter './apps/*' exec tsc --noEmit
-      
-      - name: Run tests
-        run: pnpm test
-        continue-on-error: true
+    timeout-minutes: 20
 
-  build:
-    runs-on: ubuntu-latest
-    needs: lint-and-test
-    
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Build services
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Validate app compose manifests
+        env:
+          GP_SHARED_NETWORK: platform_ops_shared
+          API_IMAGE: gpool-api:ci
+          WEB_IMAGE: gpool-web:ci
+          WEB_DOMAIN: app.example.com
+          API_DOMAIN: api.example.com
+          CADDY_EMAIL: ci@example.com
+          NODE_ENV: production
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: gpool
+          DB_HOST: postgres
+          DB_PORT: "5432"
+          DB_USER: app
+          DB_PASSWORD: app
+          DB_NAME: gpool
+          API_PORT: "3000"
+          WEB_PORT: "3001"
+          NEXT_PUBLIC_API_URL: http://api.example.com/api
+          NEXT_PUBLIC_RELEASE: ci
+          CORS_ORIGINS: http://localhost:3001
+          SWAGGER_ENABLED: "false"
+          OTEL_SERVICE_NAME: gpool-api
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+          JWT_SECRET: ci-jwt-secret
+          JWT_REFRESH_SECRET: ci-jwt-refresh-secret
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: "604800"
+          GOOGLE_CLIENT_ID: ci-google-id
+          GOOGLE_CLIENT_SECRET: ci-google-secret
+          GOOGLE_CALLBACK_URL: https://api.example.com/api/auth/google/callback
+          FRONTEND_URL: https://app.example.com
+          SMTP_HOST: smtp.example.com
+          SMTP_PORT: "587"
+          SMTP_SECURE: "false"
+          SMTP_USER: ci-user
+          SMTP_PASS: ci-pass
+          SMTP_FROM: ci@example.com
         run: |
-          docker-compose build --parallel
-        continue-on-error: true
+          docker compose -f docker/compose.app.local.yml config > /dev/null
+          docker compose -f docker/compose.app.prod.yml config > /dev/null
+
+      - name: Lint workspaces
+        run: npm run lint
+
+      - name: Typecheck workspaces
+        run: npm run typecheck
+
+      - name: Build workspaces
+        run: npm run build --workspaces
+
+      - name: Unit tests with coverage (api)
+        run: npm run test:cov:api
+
+      - name: Upload api coverage
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: api-coverage
+          path: apps/api/coverage
+          if-no-files-found: warn
+
+  secrets-scan:
+    name: Secrets Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        run: |
+          set -euo pipefail
+          VERSION=8.24.2
+          ARCHIVE="gitleaks_${VERSION}_linux_x64.tar.gz"
+          mkdir -p artifacts
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/${ARCHIVE}" -o "/tmp/${ARCHIVE}"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_checksums.txt" -o /tmp/gitleaks_checksums.txt
+          grep "${ARCHIVE}" /tmp/gitleaks_checksums.txt > /tmp/gitleaks_checksum_line.txt
+          (cd /tmp && sha256sum -c /tmp/gitleaks_checksum_line.txt)
+          tar -xzf "/tmp/${ARCHIVE}" -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --no-git --redact --config .gitleaks.toml --report-format json --report-path artifacts/gitleaks-report.json
+
+      - name: Upload gitleaks report
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: gitleaks-report
+          path: artifacts/gitleaks-report.json
+          if-no-files-found: warn
+
+  integration-e2e:
+    name: Integration Smoke (Compose)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Compose up (postgres + api + web)
+        run: docker compose -f docker/compose.ci.yml up -d --build postgres api web
+
+      - name: Wait for API
+        run: |
+          i=1
+          while [ $i -le 60 ]; do
+            if curl -fsS http://localhost:3010/api/health > /dev/null; then
+              echo "API is healthy"
+              exit 0
+            fi
+            sleep 2
+            i=$((i+1))
+          done
+          docker compose -f docker/compose.ci.yml logs --no-color api
+          exit 1
+
+      - name: Verify metrics endpoint
+        run: |
+          curl -fsS http://localhost:3010/api/health > /dev/null
+          metrics="$(curl -fsS http://localhost:3010/metrics)"
+          printf '%s\n' "$metrics" | grep -q 'http_requests_total'
+          printf '%s\n' "$metrics" | grep -q 'http_request_duration_seconds_bucket'
+
+      - name: Wait for web
+        run: |
+          i=1
+          while [ $i -le 60 ]; do
+            if curl -fsS http://localhost:3101 > /dev/null; then
+              echo "Web is reachable"
+              exit 0
+            fi
+            sleep 2
+            i=$((i+1))
+          done
+          docker compose -f docker/compose.ci.yml logs --no-color web api
+          exit 1
+
+      - name: Compose logs (on failure)
+        if: failure()
+        run: docker compose -f docker/compose.ci.yml logs --no-color
+
+      - name: Compose down
+        if: always()
+        run: docker compose -f docker/compose.ci.yml down -v
+
+  security-supply-chain:
+    name: Security + Supply Chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Audit dependencies (prod only, high+)
+        run: npm run audit:prod:gate
+
+      - name: Build prod images
+        run: |
+          docker build -f apps/api/Dockerfile --target prod -t gpool-api:ci .
+          docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:3010/api --build-arg NEXT_PUBLIC_RELEASE=ci -f apps/ui/Dockerfile --target prod -t gpool-web:ci .
+
+      - name: Trivy scan (api image)
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+        with:
+          image-ref: gpool-api:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+      - name: Trivy scan (web image)
+        uses: aquasecurity/trivy-action@e368e328979b113139d6f9068e03accaed98a518 # v0.34.1
+        with:
+          image-ref: gpool-web:ci
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
