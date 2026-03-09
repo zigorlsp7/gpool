@@ -29,6 +29,7 @@ COPY --from=deps /workspace/node_modules /app/node_modules
 COPY --from=build /workspace/apps/ui/.next/standalone ./
 COPY --from=build /workspace/apps/ui/.next/static ./apps/ui/.next/static
 COPY --from=build /workspace/apps/ui/public ./apps/ui/public
+COPY --from=build /workspace/apps/ui/messages ./apps/ui/messages
 COPY scripts/openbao-run.mjs /app/scripts/openbao-run.mjs
 USER node
 EXPOSE 3001
