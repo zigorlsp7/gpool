@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_USER: app
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_DB: gpool
     volumes:
       - app-prod-pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -19,36 +19,37 @@ services:
       driver: "json-file"
       options:
         labels: "com.docker.compose.project,com.docker.compose.service"
-    networks: [gp_shared]
+    networks:
+      gp_shared:
+        aliases:
+          - gpool-postgres
 
   api:
     image: ${API_IMAGE:?API_IMAGE is required}
     restart: unless-stopped
     environment:
-      NODE_ENV: ${NODE_ENV:?NODE_ENV is required}
+      NODE_ENV: production
       PORT: 3000
-      DB_HOST: ${DB_HOST:?DB_HOST is required}
-      DB_PORT: ${DB_PORT:?DB_PORT is required}
-      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_HOST: gpool-postgres
+      DB_PORT: 5432
+      DB_USER: app
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_NAME: gpool
       CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      TRUST_PROXY: ${TRUST_PROXY:?TRUST_PROXY is required}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:?SWAGGER_ENABLED is required}
-      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:?OTEL_SERVICE_NAME is required}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:?OTEL_EXPORTER_OTLP_ENDPOINT is required}
-      OPENBAO_ADDR: ${OPENBAO_ADDR:?OPENBAO_ADDR is required}
+      OTEL_SERVICE_NAME: gpool-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OPENBAO_ADDR: http://openbao:8200
       OPENBAO_TOKEN: ${OPENBAO_TOKEN:?OPENBAO_TOKEN is required}
-      OPENBAO_KV_MOUNT: ${OPENBAO_KV_MOUNT:?OPENBAO_KV_MOUNT is required}
-      OPENBAO_SECRET_PATH: ${OPENBAO_SECRET_PATH:?OPENBAO_SECRET_PATH is required}
-      OPENBAO_REQUIRED_KEYS: ${OPENBAO_REQUIRED_KEYS_API:?OPENBAO_REQUIRED_KEYS_API is required}
-      TOLGEE_API_URL: ${TOLGEE_API_URL:-}
-      TOLGEE_PROJECT_ID: ${TOLGEE_PROJECT_ID:-}
+      OPENBAO_KV_MOUNT: kv
+      OPENBAO_SECRET_PATH: gpool
+      OPENBAO_REQUIRED_KEYS: AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET,SMTP_PASS
+      TOLGEE_API_URL: http://tolgee:8080
+      TOLGEE_PROJECT_ID: 3
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:?GOOGLE_CALLBACK_URL is required}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:?GOOGLE_OAUTH_REDIRECT_URI is required}
       FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
-      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
-      SMTP_PORT: ${SMTP_PORT:?SMTP_PORT is required}
-      SMTP_SECURE: ${SMTP_SECURE:?SMTP_SECURE is required}
       SMTP_USER: ${SMTP_USER:?SMTP_USER is required}
       SMTP_FROM: ${SMTP_FROM:?SMTP_FROM is required}
     depends_on:
@@ -59,28 +60,33 @@ services:
       driver: "json-file"
       options:
         labels: "com.docker.compose.project,com.docker.compose.service"
-    networks: [gp_shared]
+    networks:
+      gp_shared:
+        aliases:
+          - gpool-api
 
   web:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?NEXT_PUBLIC_API_URL is required}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
       NEXT_PUBLIC_RELEASE: ${NEXT_PUBLIC_RELEASE:?NEXT_PUBLIC_RELEASE is required}
-      OPENBAO_ADDR: ${OPENBAO_ADDR:?OPENBAO_ADDR is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      GOOGLE_OAUTH_REDIRECT_URI: ${GOOGLE_OAUTH_REDIRECT_URI:?GOOGLE_OAUTH_REDIRECT_URI is required}
+      OPENBAO_ADDR: http://openbao:8200
       OPENBAO_TOKEN: ${OPENBAO_TOKEN:?OPENBAO_TOKEN is required}
-      OPENBAO_KV_MOUNT: ${OPENBAO_KV_MOUNT:?OPENBAO_KV_MOUNT is required}
-      OPENBAO_SECRET_PATH: ${OPENBAO_SECRET_PATH:?OPENBAO_SECRET_PATH is required}
-      OPENBAO_REQUIRED_KEYS: ${OPENBAO_REQUIRED_KEYS_WEB:?OPENBAO_REQUIRED_KEYS_WEB is required}
-      TOLGEE_API_URL: ${TOLGEE_API_URL:-}
-      TOLGEE_PROJECT_ID: ${TOLGEE_PROJECT_ID:-}
+      OPENBAO_KV_MOUNT: kv
+      OPENBAO_SECRET_PATH: gpool
+      OPENBAO_REQUIRED_KEYS: AUTH_SESSION_SECRET,TOLGEE_API_KEY,GOOGLE_CLIENT_SECRET
+      TOLGEE_API_URL: http://tolgee:8080
+      TOLGEE_PROJECT_ID: 3
     depends_on:
       - api
     command:
       [
         "sh",
         "-lc",
-        "until wget -qO- http://api:3000/api/health >/dev/null 2>&1; do sleep 2; done; exec node /app/scripts/openbao-run.mjs -- node apps/ui/server.js",
+        "until wget -qO- http://gpool-api:3000/api/health >/dev/null 2>&1; do sleep 2; done; exec node /app/scripts/openbao-run.mjs -- node apps/ui/server.js",
       ]
     logging:
       driver: "json-file"
@@ -112,7 +118,6 @@ services:
     environment:
       WEB_DOMAIN: ${WEB_DOMAIN:?WEB_DOMAIN is required}
       API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is required}
-      CADDY_EMAIL: ${CADDY_EMAIL:-}
     volumes:
       - ../docker/caddy/Caddyfile.app.prod:/etc/caddy/Caddyfile:ro
       - app-prod-caddy-data:/data
@@ -128,7 +133,7 @@ services:
 
 networks:
   gp_shared:
-    name: ${GP_SHARED_NETWORK:?GP_SHARED_NETWORK is required}
+    name: platform_ops_shared
     external: true
 
 volumes:

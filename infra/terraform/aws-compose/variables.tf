@@ -28,7 +28,7 @@ variable "ssm_app_prefix" {
   description = "SSM Parameter Store path prefix for app env"
 }
 
-variable "next_public_api_url" {
+variable "next_public_api_base_url" {
   type        = string
   description = "Public API URL baked into web build"
 }

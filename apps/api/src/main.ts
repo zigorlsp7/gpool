@@ -7,15 +7,20 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { httpMetricsMiddleware } from './common/metrics/http-metrics.middleware';
 import './observability/tracing';
 
-function parseCorsOrigins(raw: string | undefined): string[] | boolean {
-  if (!raw) {
-    return true;
+type TrustProxy = boolean | number | 'loopback' | 'linklocal' | 'uniquelocal';
+
+function parseCorsOrigins(raw: string | undefined): string[] {
+  if (raw === undefined || raw === null || raw.trim() === '') {
+    throw new Error('CORS_ORIGINS is required and must not be empty');
   }
   const origins = raw
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  return origins.length > 0 ? origins : true;
+  if (origins.length === 0) {
+    throw new Error('CORS_ORIGINS is required and must contain at least one origin');
+  }
+  return origins;
 }
 
 function parseBooleanEnv(input: string | undefined, fallback: boolean): boolean {
@@ -34,14 +39,46 @@ function parseBooleanEnv(input: string | undefined, fallback: boolean): boolean 
   throw new Error('SWAGGER_ENABLED must be true/false (or 1/0, yes/no)');
 }
 
+function parseTrustProxy(input: string | undefined): TrustProxy {
+  if (input === undefined || input === null || input.trim() === '') {
+    return false;
+  }
+
+  const normalized = input.trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes') {
+    return true;
+  }
+  if (normalized === 'false' || normalized === '0' || normalized === 'no') {
+    return false;
+  }
+  if (
+    normalized === 'loopback' ||
+    normalized === 'linklocal' ||
+    normalized === 'uniquelocal'
+  ) {
+    return normalized;
+  }
+  if (/^\d+$/.test(normalized)) {
+    return Number(normalized);
+  }
+
+  throw new Error(
+    'TRUST_PROXY must be one of: false, true, loopback, linklocal, uniquelocal, or a numeric hop count',
+  );
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const expressApp = app.getHttpAdapter().getInstance();
 
   app.setGlobalPrefix('api', { exclude: ['metrics'] });
+  if (typeof expressApp?.set === 'function') {
+    expressApp.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY));
+  }
   app.use(httpMetricsMiddleware);
 
   app.enableCors({
-    origin: parseCorsOrigins(process.env.CORS_ORIGINS || process.env.FRONTEND_URL),
+    origin: parseCorsOrigins(process.env.CORS_ORIGINS),
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   });

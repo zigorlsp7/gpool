@@ -96,7 +96,7 @@ retry() {
   done
 }
 
-for cmd in aws jq docker curl node; do
+for cmd in aws jq docker curl; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "Missing command: $cmd" >&2
     exit 1
@@ -125,29 +125,37 @@ fi
 
 cd "$RELEASE_DIR"
 
-APP_ENV_FILE="docker/.env.app.prod"
+APP_BASE_ENV_FILE="docker/.env.app.prod"
+APP_ENV_FILE="$(mktemp /tmp/gpool-app-env.XXXXXX)"
+trap 'rm -f "$APP_ENV_FILE"' EXIT
 OPENBAO_LOCAL_ADDR="http://127.0.0.1:8200"
 OPENBAO_KV_MOUNT="kv"
 OPENBAO_SECRET_PATH="gpool"
 
-fetch_ssm_path_to_env_file() {
-  local prefix="$1"
-  local output_file="$2"
-  local response
-  local count
+if [ ! -f "$APP_BASE_ENV_FILE" ]; then
+  echo "Missing base app env file in release bundle: $APP_BASE_ENV_FILE" >&2
+  exit 1
+fi
 
-  response="$(aws ssm get-parameters-by-path --region "$AWS_REGION" --path "$prefix" --recursive --with-decryption --output json)"
-  count="$(printf '%s' "$response" | jq '.Parameters | length')"
+cp "$APP_BASE_ENV_FILE" "$APP_ENV_FILE"
+chmod 600 "$APP_ENV_FILE"
 
-  if [ "$count" -eq 0 ]; then
-    echo "No SSM parameters found under $prefix" >&2
+read_env_var() {
+  local file="$1"
+  local key="$2"
+  grep -E "^${key}=" "$file" | tail -n1 | cut -d'=' -f2- || true
+}
+
+require_env_var_in_file() {
+  local file="$1"
+  local key="$2"
+  local value
+
+  value="$(read_env_var "$file" "$key")"
+  if [ -z "$value" ]; then
+    echo "Missing required non-secret value '$key' in $file" >&2
     exit 1
   fi
-
-  printf '%s' "$response" \
-    | jq -r '.Parameters | sort_by(.Name)[] | "\(.Name | split("/") | last)=\(.Value)"' > "$output_file"
-
-  chmod 600 "$output_file"
 }
 
 upsert_env_var() {
@@ -168,16 +176,57 @@ upsert_env_var() {
   mv "$tmp" "$file"
 }
 
-fetch_ssm_path_to_env_file "$APP_SSM_PREFIX" "$APP_ENV_FILE"
+fetch_ssm_secret_value() {
+  local parameter_name="$1"
+  local value
+  local err_file
+  local rc
+
+  err_file="$(mktemp)"
+
+  set +e
+  value="$(aws ssm get-parameter --region "$AWS_REGION" --name "$parameter_name" --with-decryption --query 'Parameter.Value' --output text 2>"$err_file")"
+  rc=$?
+  set -e
+
+  if [ "$rc" -ne 0 ] || [ -z "$value" ] || [ "$value" = "None" ]; then
+    echo "Missing required SSM secret: $parameter_name (region=$AWS_REGION)" >&2
+    if [ -s "$err_file" ]; then
+      cat "$err_file" >&2
+    fi
+    rm -f "$err_file"
+    exit 1
+  fi
+
+  rm -f "$err_file"
+  printf '%s' "$value"
+}
+
+required_non_secret_keys=(
+  WEB_DOMAIN
+  API_DOMAIN
+  NEXT_PUBLIC_API_BASE_URL
+  CORS_ORIGINS
+  TRUST_PROXY
+  SWAGGER_ENABLED
+  GOOGLE_CLIENT_ID
+  GOOGLE_OAUTH_REDIRECT_URI
+  FRONTEND_URL
+  SMTP_USER
+  SMTP_FROM
+)
+
+for key in "${required_non_secret_keys[@]}"; do
+  require_env_var_in_file "$APP_ENV_FILE" "$key"
+done
+
+openbao_token="$(fetch_ssm_secret_value "${APP_SSM_PREFIX%/}/OPENBAO_TOKEN")"
+upsert_env_var "$APP_ENV_FILE" "OPENBAO_TOKEN" "$openbao_token"
 upsert_env_var "$APP_ENV_FILE" "API_IMAGE" "$API_IMAGE"
 upsert_env_var "$APP_ENV_FILE" "WEB_IMAGE" "$WEB_IMAGE"
 upsert_env_var "$APP_ENV_FILE" "NEXT_PUBLIC_RELEASE" "$RELEASE_TAG"
 
-network_name="$(grep -E '^GP_SHARED_NETWORK=' "$APP_ENV_FILE" | tail -n1 | cut -d'=' -f2- || true)"
-if [ -z "$network_name" ]; then
-  network_name="platform_ops_shared"
-fi
-docker network create "$network_name" >/dev/null 2>&1 || true
+docker network create "platform_ops_shared" >/dev/null 2>&1 || true
 
 echo "[deploy] Waiting for OpenBao health"
 openbao_ready="false"
@@ -202,12 +251,6 @@ if [ "$openbao_ready" != "true" ]; then
   exit 1
 fi
 
-openbao_token="$(grep -E '^OPENBAO_TOKEN=' "$APP_ENV_FILE" | tail -n1 | cut -d'=' -f2- || true)"
-if [ -z "$openbao_token" ]; then
-  echo "OPENBAO_TOKEN must be present in $APP_ENV_FILE" >&2
-  exit 1
-fi
-
 openbao_secret_url="${OPENBAO_LOCAL_ADDR}/v1/${OPENBAO_KV_MOUNT}/data/${OPENBAO_SECRET_PATH}"
 openbao_secret_body_file="$(mktemp)"
 
@@ -219,24 +262,18 @@ if [ "$openbao_secret_code" != "200" ]; then
   exit 1
 fi
 
-postgres_password="$(
-  SECRET_BODY_FILE="$openbao_secret_body_file" node -e '
-const fs = require("node:fs");
-let payload;
-try {
-  payload = JSON.parse(fs.readFileSync(process.env.SECRET_BODY_FILE, "utf8"));
-} catch (err) {
-  console.error("Failed to parse OpenBao secret payload:", err.message);
-  process.exit(1);
-}
-const value = payload?.data?.data?.POSTGRES_PASSWORD;
-if (value === undefined || value === null || String(value).trim().length === 0) {
-  console.error("OpenBao secret is missing required key: POSTGRES_PASSWORD");
-  process.exit(1);
-}
-process.stdout.write(String(value));
-'
-)"
+if ! postgres_password="$(jq -r '.data.data.POSTGRES_PASSWORD // ""' "$openbao_secret_body_file")"; then
+  echo "Failed to parse OpenBao secret payload from ${OPENBAO_KV_MOUNT}/${OPENBAO_SECRET_PATH}" >&2
+  cat "$openbao_secret_body_file" >&2 || true
+  rm -f "$openbao_secret_body_file"
+  exit 1
+fi
+
+if [ -z "$postgres_password" ]; then
+  echo "OpenBao secret is missing required key: POSTGRES_PASSWORD" >&2
+  rm -f "$openbao_secret_body_file"
+  exit 1
+fi
 rm -f "$openbao_secret_body_file"
 
 export POSTGRES_PASSWORD="$postgres_password"

@@ -21,5 +21,5 @@ This repository consumes infra outputs and ships application releases.
 4. `AWS_ECR_API_REPOSITORY_URI`
 5. `AWS_ECR_WEB_REPOSITORY_URI`
 6. `AWS_SSM_APP_PREFIX` (example: `/gpool/prod/app`)
-7. `NEXT_PUBLIC_API_URL`
+7. `NEXT_PUBLIC_API_BASE_URL`
 8. Optional: `DEPLOY_HEALTHCHECK_URL`

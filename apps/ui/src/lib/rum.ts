@@ -407,7 +407,9 @@ class RUMService {
     const eventsToSend = [...this.events];
     this.events = [];
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+    const configuredBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3010';
+    const normalizedBase = configuredBase.trim().replace(/\/+$/, '');
+    const apiUrl = normalizedBase.endsWith('/api') ? normalizedBase : `${normalizedBase}/api`;
     const payload = JSON.stringify({ events: eventsToSend });
 
     if (sync && 'sendBeacon' in navigator) {
