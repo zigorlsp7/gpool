@@ -280,7 +280,7 @@ jobs:
             --exit-code 1 \
             --ignore-unfixed \
             --ignorefile /workspace/.trivyignore \
-            --vuln-type os,library \
+            --pkg-types os,library \
             --severity HIGH,CRITICAL \
             gpool-api:ci
 
@@ -294,7 +294,7 @@ jobs:
             --exit-code 1 \
             --ignore-unfixed \
             --ignorefile /workspace/.trivyignore \
-            --vuln-type os,library \
+            --pkg-types os,library \
             --severity HIGH,CRITICAL \
             gpool-web:ci
 
