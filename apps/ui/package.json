@@ -1,0 +1,30 @@
+{
+  "name": "@gpool/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0",
+    "lint": "next lint --no-cache",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No web tests configured\"",
+    "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "jszip": "^3.10.1",
+    "next": "^15.5.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.3.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^15.5.10",
+    "typescript": "^5.1.3"
+  }
+}

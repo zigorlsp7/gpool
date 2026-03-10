@@ -1,0 +1,7 @@
+aws_region                    = "us-east-1"
+deploy_bucket                 = "gpool-deploy-artifacts"
+deploy_instance_id            = "i-0123456789abcdef0"
+ecr_api_repository_uri        = "123456789012.dkr.ecr.us-east-1.amazonaws.com/gpool-api"
+ecr_web_repository_uri        = "123456789012.dkr.ecr.us-east-1.amazonaws.com/gpool-web"
+ssm_app_prefix                = "/gpool/prod/app"
+next_public_api_url           = "https://api.example.com/api"
