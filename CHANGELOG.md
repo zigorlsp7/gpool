@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3](https://github.com/zigorlsp7/gpool/compare/v0.1.2...v0.1.3) (2026-03-11)
+
+
+### Features
+
+* unified env non secrets 20260310 ([#15](https://github.com/zigorlsp7/gpool/issues/15)) ([f254c9f](https://github.com/zigorlsp7/gpool/commit/f254c9f7ddfa956bd9f936aae5b91c622f7c0255))
+
 ## [0.1.2](https://github.com/zigorlsp7/gpool/compare/v0.1.1...v0.1.2) (2026-03-10)
 
 
