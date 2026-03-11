@@ -10,4 +10,4 @@ Expected output contract (usually emitted from `platform-ops` and copied into Gi
 - `ecr_api_repository_uri`
 - `ecr_web_repository_uri`
 - `ssm_app_prefix`
-- `next_public_api_url`
+- `next_public_api_base_url`

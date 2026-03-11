@@ -7,6 +7,6 @@ output "github_actions_variables" {
     AWS_ECR_API_REPOSITORY_URI = var.ecr_api_repository_uri
     AWS_ECR_WEB_REPOSITORY_URI = var.ecr_web_repository_uri
     AWS_SSM_APP_PREFIX         = var.ssm_app_prefix
-    NEXT_PUBLIC_API_URL        = var.next_public_api_url
+    NEXT_PUBLIC_API_BASE_URL        = var.next_public_api_base_url
   }
 }

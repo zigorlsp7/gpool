@@ -1,6 +1,6 @@
 {
   "name": "gpool",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "private": true,
   "description": "Real-time football pool management platform",
   "engines": {
@@ -26,7 +26,6 @@
     "local:up": "bash ./scripts/local-stack-up.sh",
     "local:down": "bash ./scripts/local-stack-down.sh",
     "local:reset": "bash ./scripts/local-stack-reset.sh",
-    "env:doctor": "bash ./scripts/env-doctor.sh",
     "audit": "npm audit --audit-level=high",
     "audit:prod:gate": "node ./scripts/audit-prod-gate.mjs",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules"

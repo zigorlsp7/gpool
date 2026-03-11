@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20
           cache: npm
@@ -40,7 +40,6 @@ jobs:
           WEB_IMAGE: gpool-web:ci
           WEB_DOMAIN: app.example.com
           API_DOMAIN: api.example.com
-          CADDY_EMAIL: ci@example.com
           NODE_ENV: production
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
@@ -52,9 +51,10 @@ jobs:
           DB_NAME: gpool
           API_PORT: "3000"
           WEB_PORT: "3001"
-          NEXT_PUBLIC_API_URL: http://api.example.com/api
+          NEXT_PUBLIC_API_BASE_URL: http://api.example.com
           NEXT_PUBLIC_RELEASE: ci
           CORS_ORIGINS: http://localhost:3001
+          TRUST_PROXY: "false"
           SWAGGER_ENABLED: "false"
           OTEL_SERVICE_NAME: gpool-api
           OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -72,11 +72,8 @@ jobs:
           JWT_REFRESH_EXPIRES_IN: "604800"
           GOOGLE_CLIENT_ID: ci-google-id
           GOOGLE_CLIENT_SECRET: ci-google-secret
-          GOOGLE_CALLBACK_URL: https://api.example.com/api/auth/google/callback
+          GOOGLE_OAUTH_REDIRECT_URI: https://app.example.com/api/auth/google/callback
           FRONTEND_URL: https://app.example.com
-          SMTP_HOST: smtp.example.com
-          SMTP_PORT: "587"
-          SMTP_SECURE: "false"
           SMTP_USER: ci-user
           SMTP_PASS: ci-pass
           SMTP_FROM: ci@example.com
@@ -144,7 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20
           cache: npm
@@ -207,7 +204,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20
           cache: npm
@@ -254,7 +251,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20
           cache: npm
@@ -268,7 +265,7 @@ jobs:
       - name: Build prod images
         run: |
           docker build -f apps/api/Dockerfile --target prod -t gpool-api:ci .
-          docker build --build-arg NEXT_PUBLIC_API_URL=http://localhost:3010/api --build-arg NEXT_PUBLIC_RELEASE=ci -f apps/ui/Dockerfile --target prod -t gpool-web:ci .
+          docker build --build-arg NEXT_PUBLIC_API_BASE_URL=http://api:3000 --build-arg NEXT_PUBLIC_RELEASE=ci -f apps/ui/Dockerfile --target prod -t gpool-web:ci .
 
       - name: Trivy scan (api image)
         run: |

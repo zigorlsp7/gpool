@@ -1,29 +1,24 @@
-import { Controller, Get, Req, Res, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { Request, Response } from 'express';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SessionUserGuard } from '../common/auth/session-user.guard';
+
+type GoogleTransferRequest = {
+  accessToken?: string;
+};
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get('google')
-  @ApiOperation({ summary: 'Initiate Google OAuth login' })
-  @ApiResponse({ status: 302, description: 'Redirects to Google OAuth' })
-  @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req: Request) {
-    // Initiates Google OAuth - Passport handles the redirect
-  }
-
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Google OAuth callback' })
-  @ApiResponse({ status: 302, description: 'Redirects to frontend with signed transfer payload' })
-  @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req: Request, @Res() res: Response) {
-    return this.authService.handleGoogleCallback(req, res);
+  @Post('google/transfer')
+  @ApiOperation({ summary: 'Create signed transfer payload from a Google access token' })
+  @ApiResponse({ status: 200, description: 'Returns transfer payload and signature' })
+  @ApiResponse({ status: 401, description: 'Invalid Google access token' })
+  async googleTransfer(@Body() body: GoogleTransferRequest) {
+    return this.authService.createGoogleTransferFromAccessToken(body.accessToken?.trim() ?? '');
   }
 
   @Get('me')
