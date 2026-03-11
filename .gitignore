@@ -60,6 +60,7 @@ artifacts/
 # Keep docs folder mostly ignored except deployment/governance docs
 docs/*
 !docs/local-first-start.md
+!docs/cloud-first-deploy.md
 !docs/deploy-aws-terraform.md
 !docs/deployment.md
 !docs/env-management.md

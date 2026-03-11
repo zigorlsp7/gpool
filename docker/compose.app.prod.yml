@@ -92,7 +92,10 @@ services:
       driver: "json-file"
       options:
         labels: "com.docker.compose.project,com.docker.compose.service"
-    networks: [gp_shared]
+    networks:
+      gp_shared:
+        aliases:
+          - gpool-web
 
   alloy:
     image: grafana/alloy:v1.12.0
@@ -109,28 +112,6 @@ services:
       - api
     networks: [gp_shared]
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      WEB_DOMAIN: ${WEB_DOMAIN:?WEB_DOMAIN is required}
-      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN is required}
-    volumes:
-      - ../docker/caddy/Caddyfile.app.prod:/etc/caddy/Caddyfile:ro
-      - app-prod-caddy-data:/data
-      - app-prod-caddy-config:/config
-    depends_on:
-      - web
-      - api
-    logging:
-      driver: "json-file"
-      options:
-        labels: "com.docker.compose.project,com.docker.compose.service"
-    networks: [gp_shared]
-
 networks:
   gp_shared:
     name: platform_ops_shared
@@ -139,5 +120,3 @@ networks:
 volumes:
   app-prod-pgdata:
   app-prod-alloy-data:
-  app-prod-caddy-data:
-  app-prod-caddy-config:
