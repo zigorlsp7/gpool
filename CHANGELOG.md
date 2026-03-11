@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5](https://github.com/zigorlsp7/gpool/compare/v0.1.4...v0.1.5) (2026-03-11)
+
+
+### Features
+
+* route gpool email notifications through kafka ([#24](https://github.com/zigorlsp7/gpool/issues/24)) ([be076a3](https://github.com/zigorlsp7/gpool/commit/be076a37c39919b7894a380336352f6b57e09e25))
+
 ## [0.1.4](https://github.com/zigorlsp7/gpool/compare/v0.1.3...v0.1.4) (2026-03-11)
 
 
