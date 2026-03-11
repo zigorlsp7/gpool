@@ -3,8 +3,12 @@ title = "gpool gitleaks config"
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "Allow placeholder/example secret values"
+[allowlist]
+description = "Allow local env files and known placeholder/example values"
+paths = [
+  '''(^|/)docker/\.env\..*\.local(\..*)?$''',
+  '''(^|/)\.env\..*\.local(\..*)?$''',
+]
 regexes = [
   '''CHANGE_ME_[A-Z0-9_]+''',
   '''REQUIRED_SET_BY_DEPLOY''',
