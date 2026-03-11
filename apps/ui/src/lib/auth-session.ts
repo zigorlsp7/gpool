@@ -29,9 +29,17 @@ type AuthTransferPayload = {
   ver?: number;
 };
 
+type GoogleOauthConfig = {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+};
+
 const SESSION_COOKIE_NAME = "gpool-auth-session";
+const GOOGLE_STATE_COOKIE_NAME = "gpool-google-oauth-state";
 const REDIRECT_COOKIE_NAME = "gpool-post-login-redirect";
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
+const OAUTH_STATE_TTL_SECONDS = 10 * 60;
 const DEFAULT_REDIRECT_PATH = "/pools";
 
 function normalizeEmail(value: string | null | undefined): string {
@@ -149,9 +157,62 @@ async function persistSession(session: AuthSession): Promise<void> {
 }
 
 export function getApiBaseUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (explicit) return explicit.replace(/\/+$/g, "");
-  return "http://localhost:3010/api";
+  const explicit = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const normalized = (explicit || "http://localhost:3010").replace(/\/+$/g, "");
+  return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
+}
+
+function normalizeOauthHostname(url: URL): URL {
+  if (
+    url.hostname === "0.0.0.0" ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname === "[::]" ||
+    url.hostname === "::"
+  ) {
+    url.hostname = "localhost";
+  }
+  return url;
+}
+
+export function getRequestOrigin(request: Request): string {
+  const requestUrl = new URL(request.url);
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+
+  if (forwardedHost) {
+    const proto = forwardedProto || requestUrl.protocol.replace(":", "");
+    return normalizeOauthHostname(new URL(`${proto}://${forwardedHost}`)).origin;
+  }
+
+  const host = request.headers.get("host")?.trim();
+  if (host) {
+    requestUrl.host = host;
+  }
+  if (forwardedProto) {
+    requestUrl.protocol = `${forwardedProto}:`;
+  }
+
+  return normalizeOauthHostname(requestUrl).origin;
+}
+
+export function getGoogleOauthConfig(request: Request): GoogleOauthConfig | null {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  const explicitRedirect = process.env.GOOGLE_OAUTH_REDIRECT_URI?.trim();
+  if (!clientId || !clientSecret || !explicitRedirect) return null;
+
+  let redirectUri: string;
+  try {
+    redirectUri = normalizeOauthHostname(new URL(explicitRedirect)).toString();
+  } catch {
+    return null;
+  }
+
+  return {
+    clientId,
+    clientSecret,
+    redirectUri,
+  };
 }
 
 export function sanitizeRedirectPath(value: string | null | undefined): string {
@@ -172,6 +233,18 @@ export async function setPostLoginRedirectPath(path: string): Promise<void> {
   });
 }
 
+export async function setGoogleOauthState(state: string, redirectPath: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(GOOGLE_STATE_COOKIE_NAME, state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: OAUTH_STATE_TTL_SECONDS,
+  });
+  await setPostLoginRedirectPath(redirectPath);
+}
+
 export async function consumePostLoginRedirectPath(): Promise<string> {
   const cookieStore = await cookies();
   const redirectPath = sanitizeRedirectPath(cookieStore.get(REDIRECT_COOKIE_NAME)?.value);
@@ -183,6 +256,24 @@ export async function consumePostLoginRedirectPath(): Promise<string> {
     maxAge: 0,
   });
   return redirectPath;
+}
+
+export async function consumeGoogleOauthState(): Promise<{
+  state: string | null;
+  redirectPath: string;
+}> {
+  const cookieStore = await cookies();
+  const state = cookieStore.get(GOOGLE_STATE_COOKIE_NAME)?.value ?? null;
+  cookieStore.set(GOOGLE_STATE_COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+
+  const redirectPath = await consumePostLoginRedirectPath();
+  return { state, redirectPath };
 }
 
 export async function createAuthSessionFromTransfer(
@@ -244,4 +335,3 @@ export function buildApiAuthHeaders(session: AuthSession): Record<string, string
     "x-auth-signature": signature,
   };
 }
-

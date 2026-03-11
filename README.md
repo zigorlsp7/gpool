@@ -25,6 +25,7 @@ npm run local:up
 ```
 
 This app stack expects the shared Docker network from `platform-ops` (`platform_ops_shared` by default).
+For first-time setup (OpenBao secrets/token), follow `docs/local-first-start.md`.
 
 3. Check stack
 
@@ -46,7 +47,6 @@ npm run lint
 npm run typecheck
 npm run build
 npm run test
-npm run env:doctor
 ```
 
 ## Release + deploy model

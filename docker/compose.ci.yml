@@ -29,6 +29,7 @@ services:
       DB_PASSWORD: app
       DB_NAME: gpool_test
       CORS_ORIGINS: http://localhost:3101
+      TRUST_PROXY: "false"
       SWAGGER_ENABLED: "true"
       OTEL_SERVICE_NAME: gpool-api-test
       OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
@@ -42,11 +43,8 @@ services:
       AUTH_SESSION_SECRET: ci-auth-session-secret
       GOOGLE_CLIENT_ID: ci-google-id
       GOOGLE_CLIENT_SECRET: ci-google-secret
-      GOOGLE_CALLBACK_URL: http://localhost:3010/api/auth/google/callback
+      GOOGLE_OAUTH_REDIRECT_URI: http://localhost:3101/api/auth/google/callback
       FRONTEND_URL: http://localhost:3101
-      SMTP_HOST: smtp.example.com
-      SMTP_PORT: 587
-      SMTP_SECURE: "false"
       SMTP_USER: ci-user
       SMTP_PASS: ci-pass
       SMTP_FROM: ci@gpool.test
@@ -62,10 +60,10 @@ services:
       dockerfile: apps/ui/Dockerfile
       target: local
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3010/api
+        NEXT_PUBLIC_API_BASE_URL: http://api:3000
         NEXT_PUBLIC_RELEASE: ci
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3010/api
+      NEXT_PUBLIC_API_BASE_URL: http://api:3000
       NEXT_PUBLIC_RELEASE: ci
       OPENBAO_ADDR: http://openbao:8200
       OPENBAO_TOKEN: ci-openbao-token
@@ -75,6 +73,9 @@ services:
       TOLGEE_API_URL: http://tolgee:8080
       TOLGEE_PROJECT_ID: "3"
       AUTH_SESSION_SECRET: ci-auth-session-secret
+      GOOGLE_CLIENT_ID: ci-google-id
+      GOOGLE_CLIENT_SECRET: ci-google-secret
+      GOOGLE_OAUTH_REDIRECT_URI: http://localhost:3101/api/auth/google/callback
     ports:
       - "3101:3001"
     depends_on:

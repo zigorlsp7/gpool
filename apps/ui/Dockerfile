@@ -15,9 +15,9 @@ RUN HUSKY=0 npm ci --workspace @gpool/web --include-workspace-root --omit=dev --
 
 FROM base AS build
 ENV NODE_ENV=production
-ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_RELEASE
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 ENV NEXT_PUBLIC_RELEASE=${NEXT_PUBLIC_RELEASE}
 COPY --from=deps-build /workspace/node_modules /workspace/node_modules
 COPY package.json /workspace/package.json
