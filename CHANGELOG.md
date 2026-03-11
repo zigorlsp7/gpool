@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4](https://github.com/zigorlsp7/gpool/compare/v0.1.3...v0.1.4) (2026-03-11)
+
+
+### Bug Fixes
+
+* **release:** trigger release-please for deploy ([#22](https://github.com/zigorlsp7/gpool/issues/22)) ([76784d0](https://github.com/zigorlsp7/gpool/commit/76784d04424ad19de8e384497ebf8243bd26afba))
+
 ## [0.1.3](https://github.com/zigorlsp7/gpool/compare/v0.1.2...v0.1.3) (2026-03-11)
 
 
