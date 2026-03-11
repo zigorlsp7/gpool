@@ -1,17 +1,33 @@
-FROM node:20-alpine AS base
+FROM node:25-alpine AS base
 WORKDIR /app
 
 FROM base AS deps-build
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY scripts/prepare-husky.mjs scripts/prepare-husky.mjs
-RUN HUSKY=0 npm ci --workspace @gpool/api --include-workspace-root --ignore-scripts
+RUN set -eux; \
+  for attempt in 1 2 3; do \
+    HUSKY=0 npm ci --workspace @gpool/api --include-workspace-root --ignore-scripts && break; \
+    if [ "$attempt" -eq 3 ]; then \
+      exit 1; \
+    fi; \
+    echo "npm ci failed (attempt $attempt), retrying in 10s..."; \
+    sleep 10; \
+  done
 
 FROM base AS deps-prod
 COPY package.json package-lock.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY scripts/prepare-husky.mjs scripts/prepare-husky.mjs
-RUN HUSKY=0 npm ci --workspace @gpool/api --include-workspace-root --omit=dev --ignore-scripts
+RUN set -eux; \
+  for attempt in 1 2 3; do \
+    HUSKY=0 npm ci --workspace @gpool/api --include-workspace-root --omit=dev --ignore-scripts && break; \
+    if [ "$attempt" -eq 3 ]; then \
+      exit 1; \
+    fi; \
+    echo "npm ci failed (attempt $attempt), retrying in 10s..."; \
+    sleep 10; \
+  done
 
 FROM base AS build
 ENV NODE_ENV=production
@@ -21,7 +37,7 @@ COPY apps/api /app/apps/api
 WORKDIR /app/apps/api
 RUN npm run build
 
-FROM node:20-alpine AS prod
+FROM node:25-alpine AS prod
 WORKDIR /app/apps/api
 ENV NODE_ENV=production
 RUN apk upgrade --no-cache zlib \
