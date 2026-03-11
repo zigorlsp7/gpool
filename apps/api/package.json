@@ -19,7 +19,7 @@
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.4.22",
     "@nestjs/passport": "^10.0.3",
-    "@nestjs/platform-express": "^10.4.22",
+    "@nestjs/platform-express": "^11.1.16",
     "@nestjs/swagger": "^7.4.2",
     "@opentelemetry/auto-instrumentations-node": "^0.70.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.212.0",
