@@ -127,6 +127,12 @@ jobs:
           web_image="${WEB_REPOSITORY}:${IMAGE_TAG}"
           api_repo_name="${API_REPOSITORY#*/}"
           web_repo_name="${WEB_REPOSITORY#*/}"
+          effective_api_url="${NEXT_PUBLIC_API_URL:-${NEXT_PUBLIC_API_BASE_URL:-}}"
+
+          if [ -z "$effective_api_url" ]; then
+            echo "Missing NEXT_PUBLIC_API_URL/NEXT_PUBLIC_API_BASE_URL for web image build" >&2
+            exit 1
+          fi
 
           if aws ecr describe-images --repository-name "$api_repo_name" --image-ids imageTag="$IMAGE_TAG" >/dev/null 2>&1; then
             echo "API image already exists in ECR with immutable tag, reusing: $api_image"
