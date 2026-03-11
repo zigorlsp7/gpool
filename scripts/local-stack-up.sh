@@ -2,11 +2,12 @@
 set -euo pipefail
 
 APP_ENV_FILE="docker/.env.app.local"
+APP_ENV_EXAMPLE_FILE="docker/.env.app.local.example"
 OPENBAO_LOCAL_ADDR="http://localhost:8200"
 GP_SHARED_NETWORK="platform_ops_shared"
 OPENBAO_KV_MOUNT="kv"
 OPENBAO_SECRET_PATH="gpool"
-OPENBAO_REQUIRED_KEYS_API="AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET,SMTP_PASS"
+OPENBAO_REQUIRED_KEYS_API="AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET"
 OPENBAO_REQUIRED_KEYS_WEB="AUTH_SESSION_SECRET,TOLGEE_API_KEY"
 OPENBAO_REQUIRED_KEYS_DB="POSTGRES_PASSWORD"
 DB_NAME="gpool"
@@ -32,8 +33,12 @@ unset_compose_shell_overrides() {
   done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$file" || true)
 }
 if [ ! -f "$APP_ENV_FILE" ]; then
-  echo "Missing $APP_ENV_FILE. Create it and fill required values." >&2
-  exit 1
+  if [ ! -f "$APP_ENV_EXAMPLE_FILE" ]; then
+    echo "Missing $APP_ENV_FILE and $APP_ENV_EXAMPLE_FILE." >&2
+    exit 1
+  fi
+  cp "$APP_ENV_EXAMPLE_FILE" "$APP_ENV_FILE"
+  echo "Created $APP_ENV_FILE from $APP_ENV_EXAMPLE_FILE"
 fi
 
 docker network create "$GP_SHARED_NETWORK" >/dev/null 2>&1 || true
@@ -49,6 +54,10 @@ db_user="$DB_USER"
 
 if [ -z "$openbao_token" ]; then
   echo "OPENBAO_TOKEN is required in $APP_ENV_FILE" >&2
+  exit 1
+fi
+if [ "$openbao_token" = "CHANGE_ME_LOCAL_OPENBAO_TOKEN" ]; then
+  echo "OPENBAO_TOKEN in $APP_ENV_FILE still has the example value. Update it before retrying." >&2
   exit 1
 fi
 
