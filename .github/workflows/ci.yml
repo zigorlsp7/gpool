@@ -62,10 +62,10 @@ jobs:
           OPENBAO_TOKEN: ci-openbao-token
           OPENBAO_KV_MOUNT: kv
           OPENBAO_SECRET_PATH: gpool
-          OPENBAO_REQUIRED_KEYS_API: AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET,SMTP_PASS
+          OPENBAO_REQUIRED_KEYS_API: AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET
           OPENBAO_REQUIRED_KEYS_WEB: AUTH_SESSION_SECRET,TOLGEE_API_KEY
           TOLGEE_API_URL: http://tolgee:8080
-          TOLGEE_PROJECT_ID: "1"
+          TOLGEE_PROJECT_ID: "3"
           JWT_SECRET: ci-jwt-secret
           JWT_REFRESH_SECRET: ci-jwt-refresh-secret
           JWT_EXPIRES_IN: 15m
@@ -74,9 +74,8 @@ jobs:
           GOOGLE_CLIENT_SECRET: ci-google-secret
           GOOGLE_OAUTH_REDIRECT_URI: https://app.example.com/api/auth/google/callback
           FRONTEND_URL: https://app.example.com
-          SMTP_USER: ci-user
-          SMTP_PASS: ci-pass
-          SMTP_FROM: ci@example.com
+          NOTIFICATIONS_KAFKA_BROKERS: notifications-redpanda:9092
+          NOTIFICATIONS_EMAIL_TOPIC: notification.email.requested.v1
         run: |
           docker compose -f docker/compose.app.local.yml config > /dev/null
           docker compose -f docker/compose.app.prod.yml config > /dev/null

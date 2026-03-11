@@ -19,8 +19,9 @@ out/
 .env.local
 .env*.local
 docker/.env*
-!docker/.env.app.local
+!docker/.env.app.local.example
 !docker/.env.app.prod
+docker/.env.app.local
 
 # Logs
 logs/

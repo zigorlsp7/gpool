@@ -37,7 +37,7 @@ services:
       OPENBAO_TOKEN: ci-openbao-token
       OPENBAO_KV_MOUNT: kv
       OPENBAO_SECRET_PATH: gpool
-      OPENBAO_REQUIRED_KEYS_API: AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET,SMTP_PASS
+      OPENBAO_REQUIRED_KEYS_API: AUTH_SESSION_SECRET,GOOGLE_CLIENT_SECRET
       TOLGEE_API_URL: http://tolgee:8080
       TOLGEE_PROJECT_ID: "3"
       AUTH_SESSION_SECRET: ci-auth-session-secret
@@ -45,9 +45,8 @@ services:
       GOOGLE_CLIENT_SECRET: ci-google-secret
       GOOGLE_OAUTH_REDIRECT_URI: http://localhost:3101/api/auth/google/callback
       FRONTEND_URL: http://localhost:3101
-      SMTP_USER: ci-user
-      SMTP_PASS: ci-pass
-      SMTP_FROM: ci@gpool.test
+      NOTIFICATIONS_KAFKA_BROKERS: notifications-redpanda:9092
+      NOTIFICATIONS_EMAIL_TOPIC: notification.email.requested.v1
     ports:
       - "3010:3000"
     depends_on:

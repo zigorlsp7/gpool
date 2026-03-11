@@ -4,7 +4,7 @@ set -euo pipefail
 APP_ENV_FILE="docker/.env.app.local"
 
 if [ ! -f "$APP_ENV_FILE" ]; then
-  echo "Missing $APP_ENV_FILE. Create it and fill required values." >&2
+  echo "Missing $APP_ENV_FILE. Copy docker/.env.app.local.example first." >&2
   exit 1
 fi
 
