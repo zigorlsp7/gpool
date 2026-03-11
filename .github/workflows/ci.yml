@@ -31,7 +31,7 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Validate app compose manifests
         env:
@@ -136,7 +136,6 @@ jobs:
     name: Integration Smoke (Compose)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: quality
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -147,7 +146,7 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Compose up (postgres + api + web)
         run: docker compose -f docker/compose.ci.yml up -d --build postgres api web
@@ -199,7 +198,6 @@ jobs:
     name: Web Smoke (HTTP)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: quality
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -210,7 +208,7 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Compose up (postgres + api + web)
         run: docker compose -f docker/compose.ci.yml up -d --build postgres api web
@@ -246,7 +244,6 @@ jobs:
     name: Security + Supply Chain
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    needs: quality
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -257,56 +254,54 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm install
+        run: npm ci
 
       - name: Audit dependencies (prod only, high+)
         run: npm run audit:prod:gate
 
       - name: Build prod images
         run: |
-          docker build -f apps/api/Dockerfile --target prod -t gpool-api:ci .
-          docker build --build-arg NEXT_PUBLIC_API_BASE_URL=http://api:3000 --build-arg NEXT_PUBLIC_RELEASE=ci -f apps/ui/Dockerfile --target prod -t gpool-web:ci .
+          docker build -f apps/api/Dockerfile --target prod -t gpool-api:ci . &
+          pid_api=$!
+          docker build --build-arg NEXT_PUBLIC_API_BASE_URL=http://api:3000 --build-arg NEXT_PUBLIC_RELEASE=ci -f apps/ui/Dockerfile --target prod -t gpool-web:ci . &
+          pid_web=$!
+          wait "$pid_api"
+          wait "$pid_web"
 
       - name: Trivy scan (api image)
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$PWD:/workspace" \
-            aquasec/trivy:0.69.3 image \
-            --format table \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --ignorefile /workspace/.trivyignore \
-            --pkg-types os,library \
-            --severity HIGH,CRITICAL \
-            gpool-api:ci
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: gpool-api:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
 
       - name: Trivy scan (web image)
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$PWD:/workspace" \
-            aquasec/trivy:0.69.3 image \
-            --format table \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --ignorefile /workspace/.trivyignore \
-            --pkg-types os,library \
-            --severity HIGH,CRITICAL \
-            gpool-web:ci
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: gpool-web:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
 
       - name: Prepare artifacts dir
         run: mkdir -p artifacts
 
       - name: Generate SBOM (api image)
-        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0
         with:
           image: gpool-api:ci
           format: spdx-json
           output-file: artifacts/sbom-api.spdx.json
 
       - name: Generate SBOM (web image)
-        uses: anchore/sbom-action@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0
+        uses: anchore/sbom-action@17ae1740179002c89186b61233e0f892c3118b11 # v0
         with:
           image: gpool-web:ci
           format: spdx-json
